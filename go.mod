@@ -5,7 +5,7 @@ require (
 	cloud.google.com/go/storage v1.4.0
 	github.com/ClickHouse/clickhouse-go v1.3.12
 	github.com/andybalholm/brotli v1.0.0 // indirect
-	github.com/aws/aws-sdk-go v1.25.38
+	github.com/aws/aws-sdk-go v1.25.48
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/djherbis/buffer v1.1.0 // indirect
@@ -15,26 +15,29 @@ require (
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/klauspost/compress v1.9.2 // indirect
+	github.com/klauspost/compress v1.9.4 // indirect
 	github.com/mattn/go-colorable v0.1.1 // indirect
-	github.com/mattn/go-runewidth v0.0.6 // indirect
+	github.com/mattn/go-runewidth v0.0.7 // indirect
 	github.com/mholt/archiver v1.1.3-0.20190812163345-2d1449806793
 	github.com/pierrec/lz4 v2.3.1-0.20190907084430-0554902aa74a+incompatible // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.4.0
-	github.com/urfave/cli v1.22.1
+	github.com/urfave/cli v1.22.2
 	go.opencensus.io v0.22.2 // indirect
-	golang.org/x/net v0.0.0-20191119073136-fc4aabc6c914 // indirect
-	golang.org/x/sys v0.0.0-20191119195528-f068ffe820e4 // indirect
-	golang.org/x/tools v0.0.0-20191119175705-11e13f1c3fd7 // indirect
+	golang.org/x/exp v0.0.0-20191129062945-2f5052295587 // indirect
+	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
+	golang.org/x/net v0.0.0-20191204025024-5ee1b9f4859a // indirect
+	golang.org/x/oauth2 v0.0.0-20191202225959-858c2ad4c8b6 // indirect
+	golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e // indirect
+	golang.org/x/tools v0.0.0-20191205012623-e84277c2c008 // indirect
 	google.golang.org/api v0.14.0
 	google.golang.org/appengine v1.6.5 // indirect
-	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11 // indirect
+	google.golang.org/genproto v0.0.0-20191203220235-3fa9dbf08042 // indirect
 	google.golang.org/grpc v1.25.1 // indirect
 	gopkg.in/cheggaaa/pb.v1 v1.0.28
 	gopkg.in/djherbis/buffer.v1 v1.1.0
 	gopkg.in/djherbis/nio.v2 v2.0.3
-	gopkg.in/yaml.v2 v2.2.6
+	gopkg.in/yaml.v2 v2.2.7
 )
 
 go 1.13
