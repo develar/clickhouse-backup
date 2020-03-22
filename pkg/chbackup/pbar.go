@@ -3,7 +3,7 @@ package chbackup
 import (
 	"io"
 
-	progressbar "gopkg.in/cheggaaa/pb.v1"
+	progressbar "github.com/cheggaaa/pb/v3"
 )
 
 type Bar struct {
@@ -15,19 +15,7 @@ func StartNewByteBar(show bool, total int64) *Bar {
 	if show {
 		return &Bar{
 			show: true,
-			pb:   progressbar.StartNew(int(total)).SetUnits(progressbar.U_BYTES),
-		}
-	}
-	return &Bar{
-		show: false,
-	}
-}
-
-func StartNewBar(show bool, total int) *Bar {
-	if show {
-		return &Bar{
-			show: true,
-			pb:   progressbar.StartNew(total),
+			pb:   progressbar.Start64(total),
 		}
 	}
 	return &Bar{
@@ -44,12 +32,6 @@ func (b *Bar) Finish() {
 func (b *Bar) Add64(add int64) {
 	if b.show {
 		b.pb.Add64(add)
-	}
-}
-
-func (b *Bar) Set(current int) {
-	if b.show {
-		b.pb.Set(current)
 	}
 }
 

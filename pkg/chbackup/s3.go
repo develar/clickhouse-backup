@@ -1,61 +1,26 @@
 package chbackup
 
 import (
-	"crypto/tls"
+	"github.com/minio/minio-go/v6/pkg/encrypt"
 	"io"
-	"net/http"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/defaults"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/minio/minio-go/v6"
 	"github.com/pkg/errors"
 )
 
 // S3 - presents methods for manipulate data on s3
 type S3 struct {
-	session *session.Session
-	Config  *S3Config
+	minioClient *minio.Client
+	Config      *S3Config
 }
 
 // Connect - connect to s3
 func (s *S3) Connect() error {
 	var err error
 
-	awsDefaults := defaults.Get()
-	defaultCredProviders := defaults.CredProviders(awsDefaults.Config, awsDefaults.Handlers)
-
-	// Define custom static cred provider
-	staticCreds := &credentials.StaticProvider{Value: credentials.Value{
-		AccessKeyID:     s.Config.AccessKey,
-		SecretAccessKey: s.Config.SecretKey,
-	}}
-
-	// Append static creds to the defaults
-	customCredProviders := append([]credentials.Provider{staticCreds}, defaultCredProviders...)
-	creds := credentials.NewChainCredentials(customCredProviders)
-
-	var awsConfig = &aws.Config{
-		Credentials:      creds,
-		Region:           aws.String(s.Config.Region),
-		Endpoint:         aws.String(s.Config.Endpoint),
-		DisableSSL:       aws.Bool(s.Config.DisableSSL),
-		S3ForcePathStyle: aws.Bool(s.Config.ForcePathStyle),
-		MaxRetries:       aws.Int(30),
-	}
-
-	if s.Config.DisableCertVerification {
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		awsConfig.HTTPClient = &http.Client{Transport: tr}
-	}
-
-	if s.session, err = session.NewSession(awsConfig); err != nil {
+	if s.minioClient, err = minio.New(s.Config.Endpoint, s.Config.AccessKey, s.Config.SecretKey, !s.Config.DisableSSL); err != nil {
+		println(s.Config.Endpoint)
 		return err
 	}
 	return nil
@@ -66,89 +31,65 @@ func (s *S3) Kind() string {
 }
 
 func (s *S3) GetFileReader(key string) (io.ReadCloser, error) {
-	svc := s3.New(s.session)
-	req, resp := svc.GetObjectRequest(&s3.GetObjectInput{
-		Bucket: aws.String(s.Config.Bucket),
-		Key:    aws.String(key),
-	})
-	if err := req.Send(); err != nil {
+	object, err := s.minioClient.GetObject(s.Config.Bucket, key, minio.GetObjectOptions{})
+	if err != nil {
 		return nil, err
 	}
-
-	return resp.Body, nil
+	return object, nil
 }
 
-func (s *S3) PutFile(key string, r io.ReadCloser) error {
-	uploader := s3manager.NewUploader(s.session)
-	uploader.Concurrency = 10
-	uploader.PartSize = s.Config.PartSize
-	var sse *string
-	if s.Config.SSE != "" {
-		sse = aws.String(s.Config.SSE)
+func (s *S3) PutFile(key string, r io.ReadCloser, progressBarUpdater *ProgressBarUpdater) error {
+	options := minio.PutObjectOptions{}
+	if s.Config.PartSize > 0 {
+		options.PartSize = uint64(s.Config.PartSize)
+		options.Progress = progressBarUpdater
 	}
-	_, err := uploader.Upload(&s3manager.UploadInput{
-		ACL:                  aws.String(s.Config.ACL),
-		Bucket:               aws.String(s.Config.Bucket),
-		Key:                  aws.String(key),
-		Body:                 r,
-		ServerSideEncryption: sse,
-	})
+	if s.Config.SSE != "" {
+		var err error
+		// todo is it correct?
+		options.ServerSideEncryption, err = encrypt.NewSSEC([]byte(s.Config.SSE))
+		if err != nil {
+			return err
+		}
+	}
+	_, err := s.minioClient.PutObject(s.Config.Bucket, key, r, -1, options)
 	return err
 }
 
 func (s *S3) DeleteFile(key string) error {
-	params := &s3.DeleteObjectInput{
-		Bucket: aws.String(s.Config.Bucket),
-		Key:    aws.String(key),
-	}
-
-	_, err := s3.New(s.session).DeleteObject(params)
+	err := s.minioClient.RemoveObject(s.Config.Bucket, key)
 	if err != nil {
-		return errors.Wrapf(err, "DeleteFile, deleting object %+v", params)
+		return errors.Wrapf(err, "cannot delete file (bucket=%s, key=%s)", s.Config.Bucket, key)
 	}
 	return nil
 }
 
 func (s *S3) GetFile(key string) (RemoteFile, error) {
-	svc := s3.New(s.session)
-	head, err := svc.HeadObject(&s3.HeadObjectInput{
-		Bucket: aws.String(s.Config.Bucket),
-		Key:    aws.String(key),
-	})
+	objectInfo, err := s.minioClient.StatObject(s.Config.Bucket, key, minio.StatObjectOptions{})
 	if err != nil {
-		aerr, ok := err.(awserr.Error)
-		if ok && aerr.Code() == "NotFound" {
+		errorResponse, ok := err.(minio.ErrorResponse)
+		if ok && errorResponse.Code != "NoSuchKey" {
 			return nil, ErrNotFound
 		}
-		return nil, err
+		return nil, errors.Wrapf(err, "cannot get file metadata (bucket=%s, key=%s)", s.Config.Bucket, key)
 	}
-	return &s3File{*head.ContentLength, *head.LastModified, key}, nil
+	return &s3File{objectInfo.Size, objectInfo.LastModified, key}, nil
 }
 
 func (s *S3) Walk(s3Path string, process func(r RemoteFile)) error {
-	return s.remotePager(s.Config.Path, false, func(page *s3.ListObjectsV2Output) {
-		for _, c := range page.Contents {
-			process(&s3File{*c.Size, *c.LastModified, *c.Key})
-		}
-	})
-}
+	doneCh := make(chan struct{})
+	defer close(doneCh)
 
-func (s *S3) remotePager(s3Path string, delim bool, pager func(page *s3.ListObjectsV2Output)) error {
-	params := &s3.ListObjectsV2Input{
-		Bucket:  aws.String(s.Config.Bucket), // Required
-		MaxKeys: aws.Int64(1000),
+	objectCh := s.minioClient.ListObjectsV2(s.Config.Bucket, s.Config.Path, false, doneCh)
+	for object := range objectCh {
+		if object.Err != nil {
+			return errors.Wrapf(object.Err, "cannot get file metadata (bucket=%s, key=%s)", s.Config.Bucket, object.Key)
+		}
+
+		process(&s3File{object.Size, object.LastModified, object.Key})
 	}
-	if s3Path != "" && s3Path != "/" {
-		params.Prefix = aws.String(s3Path)
-	}
-	if delim {
-		params.Delimiter = aws.String("/")
-	}
-	wrapper := func(page *s3.ListObjectsV2Output, lastPage bool) bool {
-		pager(page)
-		return true
-	}
-	return s3.New(s.session).ListObjectsV2Pages(params, wrapper)
+
+	return nil
 }
 
 type s3File struct {

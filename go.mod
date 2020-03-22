@@ -6,19 +6,17 @@ require (
 	github.com/ClickHouse/clickhouse-go v1.3.12
 	github.com/andybalholm/brotli v1.0.0 // indirect
 	github.com/aws/aws-sdk-go v1.25.48
+	github.com/cheggaaa/pb/v3 v3.0.4
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/djherbis/buffer v1.1.0 // indirect
-	github.com/fatih/color v1.7.0 // indirect
 	github.com/frankban/quicktest v1.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9 // indirect
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/klauspost/compress v1.9.4 // indirect
-	github.com/mattn/go-colorable v0.1.1 // indirect
-	github.com/mattn/go-runewidth v0.0.7 // indirect
 	github.com/mholt/archiver v1.1.3-0.20190812163345-2d1449806793
+	github.com/minio/minio-go/v6 v6.0.50
 	github.com/pierrec/lz4 v2.3.1-0.20190907084430-0554902aa74a+incompatible // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.4.0

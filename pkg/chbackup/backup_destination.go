@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cheggaaa/pb/v3"
 	"io"
 	"io/ioutil"
 	"log"
@@ -54,7 +55,7 @@ type RemoteStorage interface {
 	Connect() error
 	Walk(string, func(RemoteFile)) error
 	GetFileReader(key string) (io.ReadCloser, error)
-	PutFile(key string, r io.ReadCloser) error
+	PutFile(key string, r io.ReadCloser, progressBarUpdater *ProgressBarUpdater) error
 }
 
 type BackupDestination struct {
@@ -270,7 +271,7 @@ func (bd *BackupDestination) CompressedStreamUpload(localPath, remotePath, diffF
 		}
 		return nil
 	})
-	bar := StartNewByteBar(!bd.disableProgressBar, totalBytes)
+	bar := StartNewByteBar(!bd.disableProgressBar, totalBytes).pb
 	if diffFromPath != "" {
 		fi, err := os.Stat(diffFromPath)
 		if err != nil {
@@ -302,7 +303,6 @@ func (bd *BackupDestination) CompressedStreamUpload(localPath, remotePath, diffF
 			if !info.Mode().IsRegular() {
 				return nil
 			}
-			bar.Add64(info.Size())
 			file, err := os.Open(filePath)
 			if err != nil {
 				return err
@@ -377,11 +377,26 @@ func (bd *BackupDestination) CompressedStreamUpload(localPath, remotePath, diffF
 		return
 	}()
 
-	if err := bd.PutFile(archiveName, body); err != nil {
+	var progressBarUpdater *ProgressBarUpdater
+	if !bd.disableProgressBar {
+		progressBarUpdater = &ProgressBarUpdater{bar: bar}
+	}
+	if err := bd.PutFile(archiveName, body, progressBarUpdater); err != nil {
 		return err
 	}
-	bar.Finish()
+	if bar != nil {
+		bar.Finish()
+	}
 	return nil
+}
+
+type ProgressBarUpdater struct {
+	bar *pb.ProgressBar
+}
+
+func (t *ProgressBarUpdater) Read(p []byte) (n int, err error) {
+	t.bar.Add(len(p))
+	return
 }
 
 func NewBackupDestination(config Config) (*BackupDestination, error) {

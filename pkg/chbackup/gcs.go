@@ -77,7 +77,7 @@ func (gcs *GCS) GetFileWriter(key string) io.WriteCloser {
 	return obj.NewWriter(ctx)
 }
 
-func (gcs *GCS) PutFile(key string, r io.ReadCloser) error {
+func (gcs *GCS) PutFile(key string, r io.ReadCloser, progressBarUpdater *ProgressBarUpdater) error {
 	ctx := context.Background()
 	obj := gcs.client.Bucket(gcs.Config.Bucket).Object(key)
 	writer := obj.NewWriter(ctx)
