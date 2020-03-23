@@ -52,7 +52,7 @@ func (s *S3) PutFile(key string, r io.ReadCloser, progressBarUpdater *ProgressBa
 			return err
 		}
 	}
-	_, err := s.minioClient.PutObject(s.Config.Bucket, key, r, -1, options)
+	_, err := s.minioClient.PutObject(s.Config.Bucket, key, r, progressBarUpdater.ContentSize, options)
 	return err
 }
 

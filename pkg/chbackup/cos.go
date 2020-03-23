@@ -97,7 +97,7 @@ func (c *COS) GetFileReader(key string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (c *COS) PutFile(key string, r io.ReadCloser) error {
+func (c *COS) PutFile(key string, r io.ReadCloser, progressBarUpdater *ProgressBarUpdater) error {
 	_, err := c.client.Object.Put(context.Background(), key, r, nil)
 	if err != nil {
 		return err

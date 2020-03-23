@@ -14,7 +14,7 @@ define DESC =
  Support of incremental backups on remote storages'
 endef
 GO_FILES = $(shell find -name '*.go')
-GO_BUILD = go build -ldflags "-X 'main.version=$(VERSION)' -X 'main.gitCommit=$(GIT_COMMIT)' -X 'main.buildDate=$(DATE)'"
+GO_BUILD = go build -ldflags "-s -w -X 'main.version=$(VERSION)' -X 'main.gitCommit=$(GIT_COMMIT)' -X 'main.buildDate=$(DATE)'"
 PKG_FILES = build/$(NAME)_$(VERSION)_amd64.deb build/$(NAME)-$(VERSION)-1.x86_64.rpm
 export CGO_ENABLED = 0
 
@@ -37,16 +37,20 @@ test:
 
 build: $(NAME)/$(NAME)
 
+update-deps:
+	GOPROXY=https://proxy.golang.org go get -d -u ./...
+	go mod tidy
+
 config: $(NAME)/config.yml
 
 $(NAME)/config.yml: $(NAME)/$(NAME)
 	./$(NAME)/$(NAME) default-config > $@
 
 $(NAME)/$(NAME): $(GO_FILES)
-	$(GO_BUILD) -o $@ .
+	$(GO_BUILD) -o build/clickhouse-backup .
 
 build/$(NAME): $(GO_FILES)
-	GOOS=linux GOARCH=amd64 $(GO_BUILD) -o $@ .
+	GOOS=linux GOARCH=amd64 $(GO_BUILD) -o build/clickhouse .
 
 packages: $(PKG_FILES)
 

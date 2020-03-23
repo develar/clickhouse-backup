@@ -182,11 +182,17 @@ func (bd *BackupDestination) CompressedStreamDownload(remotePath string, localPa
 	}
 	filesize := file.Size()
 
-	bar := StartNewByteBar(!bd.disableProgressBar, filesize)
 	buf := buffer.New(BufferSize)
 	bufReader := nio.NewReader(reader, buf)
-	proxyReader := bar.NewProxyReader(bufReader)
-	z, _ := getArchiveReader(bd.compressionFormat)
+  var proxyReader io.Reader
+  if bd.disableProgressBar {
+    proxyReader = bufReader
+  } else {
+    bar := pb.Start64(filesize)
+    proxyReader = bar.NewProxyReader(bufReader)
+    defer bar.Finish()
+  }
+  z, _ := getArchiveReader(bd.compressionFormat)
 	if err := z.Open(proxyReader, 0); err != nil {
 		return err
 	}
@@ -251,7 +257,6 @@ func (bd *BackupDestination) CompressedStreamDownload(remotePath string, localPa
 			return err
 		}
 	}
-	bar.Finish()
 	return nil
 }
 
@@ -271,8 +276,14 @@ func (bd *BackupDestination) CompressedStreamUpload(localPath, remotePath, diffF
 		}
 		return nil
 	})
-	bar := StartNewByteBar(!bd.disableProgressBar, totalBytes).pb
-	if diffFromPath != "" {
+
+  var progressBarUpdater *ProgressBarUpdater
+  if !bd.disableProgressBar {
+    bar := pb.Start64(totalBytes)
+    defer bar.Finish()
+    progressBarUpdater = &ProgressBarUpdater{bar: bar, ContentSize: totalBytes}
+	}
+  if diffFromPath != "" {
 		fi, err := os.Stat(diffFromPath)
 		if err != nil {
 			return err
@@ -377,21 +388,15 @@ func (bd *BackupDestination) CompressedStreamUpload(localPath, remotePath, diffF
 		return
 	}()
 
-	var progressBarUpdater *ProgressBarUpdater
-	if !bd.disableProgressBar {
-		progressBarUpdater = &ProgressBarUpdater{bar: bar}
-	}
 	if err := bd.PutFile(archiveName, body, progressBarUpdater); err != nil {
 		return err
-	}
-	if bar != nil {
-		bar.Finish()
 	}
 	return nil
 }
 
 type ProgressBarUpdater struct {
-	bar *pb.ProgressBar
+  ContentSize int64
+  bar         *pb.ProgressBar
 }
 
 func (t *ProgressBarUpdater) Read(p []byte) (n int, err error) {
