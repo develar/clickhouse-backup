@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	yaml "gopkg.in/yaml.v2"
@@ -15,6 +16,7 @@ type Config struct {
 	ClickHouse ClickHouseConfig `yaml:"clickhouse"`
 	S3         S3Config         `yaml:"s3"`
 	GCS        GCSConfig        `yaml:"gcs"`
+	COS        COSConfig        `yaml:"cos"`
 }
 
 // GeneralConfig - general setting section
@@ -53,6 +55,18 @@ type S3Config struct {
 	DisableCertVerification bool   `yaml:"disable_cert_verification" envconfig:"S3_DISABLE_CERT_VERIFICATION"`
 }
 
+// COSConfig - cos settings section
+type COSConfig struct {
+	RowUrl            string `yaml:"url" envconfig:"COS_URL"`
+	Timeout           int    `yaml:"timeout" envconfig:"COS_TIMEOUT"`
+	SecretID          string `yaml:"secret_id" envconfig:"COS_SECRET_ID"`
+	SecretKey         string `yaml:"secret_key" envconfig:"COS_SECRET_KEY"`
+	Path              string `yaml:"path" envconfig:"COS_PATH"`
+	CompressionFormat string `yaml:"compression_format" envconfig:"COS_COMPRESSION_FORMAT"`
+	CompressionLevel  int    `yaml:"compression_level" envconfig:"COS_COMPRESSION_LEVEL"`
+	Debug             bool   `yaml:"debug" envconfig:"COS_DEBUG"`
+}
+
 // ClickHouseConfig - clickhouse settings section
 type ClickHouseConfig struct {
 	Username   string   `yaml:"username" envconfig:"CLICKHOUSE_USERNAME"`
@@ -61,6 +75,7 @@ type ClickHouseConfig struct {
 	Port       uint     `yaml:"port" envconfig:"CLICKHOUSE_PORT"`
 	DataPath   string   `yaml:"data_path" envconfig:"CLICKHOUSE_DATA_PATH"`
 	SkipTables []string `yaml:"skip_tables" envconfig:"CLICKHOUSE_SKIP_TABLES"`
+	Timeout    string   `yaml:"timeout" envconfig:"CLICKHOUSE_TIMEOUT"`
 }
 
 // LoadConfig - load config from file
@@ -87,8 +102,13 @@ func validateConfig(config *Config) error {
 	if _, err := getArchiveWriter(config.S3.CompressionFormat, config.S3.CompressionLevel); err != nil {
 		return err
 	}
-	_, err := getArchiveWriter(config.GCS.CompressionFormat, config.GCS.CompressionLevel)
-	return err
+	if _, err := getArchiveWriter(config.GCS.CompressionFormat, config.GCS.CompressionLevel); err != nil {
+		return err
+	}
+	if _, err := time.ParseDuration(config.ClickHouse.Timeout); err != nil {
+		return err
+	}
+	return nil
 }
 
 // PrintDefaultConfig - print default config to stdout
@@ -113,6 +133,7 @@ func DefaultConfig() *Config {
 			SkipTables: []string{
 				"system.*",
 			},
+			Timeout: "5m",
 		},
 		S3: S3Config{
 			Region:                  "us-east-1",
@@ -126,6 +147,16 @@ func DefaultConfig() *Config {
 		GCS: GCSConfig{
 			CompressionLevel:  1,
 			CompressionFormat: "gzip",
+		},
+		COS: COSConfig{
+			RowUrl:            "",
+			Timeout:           100,
+			SecretID:          "",
+			SecretKey:         "",
+			Path:              "",
+			CompressionFormat: "gzip",
+			CompressionLevel:  1,
+			Debug: false,
 		},
 	}
 }
